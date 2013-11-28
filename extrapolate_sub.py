@@ -13,6 +13,7 @@ from math import sqrt, fabs
 from scipy.optimize import curve_fit
 import scipy.optimize as optimization
 import numpy as np
+import classes as cls
 
 ############################################################################
 ## DOFIT FUNCTION
@@ -135,6 +136,52 @@ def get_odd_XS():
 
 		XS_array 		object array
 						array of XS to fudge in topbase_class format
+
+	'''
+
+
+
+	# Manually identified list of unusual / anomalous XSections
+	XSlist = ["6 2 231", "7 4 121", "7 3 411", \
+	          "7 4 321", "8 3 150", "8 3 141", \
+	          "8 3 151", "8 3 341", "8 3 351", \
+	          "8 3 350", "8 4 211", "8 4 220", \
+	          "8 4 221", "8 5 321", "8 5 121"]
+
+	# number of odd XSections
+	n_odd = len(XSlist)
+
+	# create empty object array to store topbase class instances
+	XS_array = np.ndarray( n_odd,dtype=np.object)
+
+	# cycle over each XS and place in class instance
+	for i in range(n_odd):
+
+
+		# split string
+		data = XSlist[i].split()
+
+		
+		# get information
+		Z = data[0]
+		ion = data[0]
+		islp = data[0]
+
+		
+		# get topbase class instance
+		XS_array[i] = cls.topbase_class (Z, ion, islp, 0, 0, 0, []], []])
+
+
+	# all done, return array
+	return XS_array
+
+
+
+
+
+
+
+
 
 
 

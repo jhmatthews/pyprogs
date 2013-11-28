@@ -24,7 +24,7 @@ returns:
 import os, sys
 import numpy as np
 import pylab
-from constants import *
+#from constants import *
 import extrapolate_sub as sub
 #from scipy.optimize import curve_fit
 #import scipy.optimize as optimization
