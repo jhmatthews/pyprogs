@@ -72,17 +72,23 @@ def dofit(fmode, x, y, nmore, MAX_EXTRAP, n_p):
 
 def choose_mode(arg_array):
 
+	Plot = False
+	fmode=1
+	MAX_ENERGY=10000
+
 	if len(arg_array)>1:
 		for i in range( len(arg_array) ):
 			if arg_array[i] == '-e':
 				MAX_ENERGY = float ( arg_array[ i + 1 ] )
 			if arg_array[i] == '-f':
 				fmode= int ( arg_array[ i + 1 ] )
+			if arg_array[i] == 'plot':
+				Plot = True
 	else:
 		fmode=1
 		MAX_ENERGY=10000
 
-	return fmode, MAX_ENERGY
+	return fmode, MAX_ENERGY, Plot
 
 
 ############################################################################
@@ -137,6 +143,8 @@ def get_odd_XS():
 		XS_array 		object array
 						array of XS to fudge in topbase_class format
 
+	Comments:
+
 	'''
 
 
@@ -148,11 +156,15 @@ def get_odd_XS():
 	          "8 3 350", "8 4 211", "8 4 220", \
 	          "8 4 221", "8 5 321", "8 5 121"]
 
+	import numpy as np
+
 	# number of odd XSections
 	n_odd = len(XSlist)
 
 	# create empty object array to store topbase class instances
 	XS_array = np.ndarray( n_odd,dtype=np.object)
+
+	Z, ion, islp = [],[],[]
 
 	# cycle over each XS and place in class instance
 	for i in range(n_odd):
@@ -163,13 +175,13 @@ def get_odd_XS():
 
 		
 		# get information
-		Z = data[0]
-		ion = data[0]
-		islp = data[0]
+		Z.append (int( data[0]))
+		ion.append( int(data[1]))
+		islp.append(int(data[2]))
 
-		
+	
 		# get topbase class instance
-		XS_array[i] = cls.topbase_class (Z, ion, islp, 0, 0, 0, []], []])
+	XS_array = topbase_class (np.array(Z), np.array(ion), np.array(islp), 0, 0, 0, [], [])
 
 
 	# all done, return array
@@ -177,9 +189,112 @@ def get_odd_XS():
 
 
 
+def read_topbase(filename):
+
+	import numpy as np
+
+	'''read in XS info from Topbase XS data in Python format'''
+
+	Z,ion,islp,l,E0,num_records = sum_records = np.loadtxt( filename, 
+			dtype={'names': ('Z', 'ion', 'islp', 'l', 'E0', 'np'), 
+			'formats': ('i4', 'i4', 'i4', 'i4', 'float', 'i4')}, 
+                        comments='PhotTop ', delimiter=None, converters=None, 
+                        skiprows=0, usecols=(1,2,3,4,5,6), unpack=True, ndmin=0)
+	
+	## then read the actual cross sections
+	energy, XS = np.loadtxt(filename, dtype='float', 
+                        comments='PhotTopS', delimiter=None, converters=None, 
+                        skiprows=0, usecols=(1,2), unpack=True, ndmin=0)
+
+	# create blank array to store topbase class instances
+	top = np.ndarray( len(Z),dtype=np.object)
+
+	nline = 0
+	
+	for i in range(len(top)):
+
+		n_p = int(num_records[i])
+		nmax = nline + n_p
+		
+		top[i] = topbase_class (Z[i], int(ion[i]), int(islp[i]), int(l[i]), E0[i], n_p, energy[nline:nmax], XS[nline:nmax])
+
+		nline = nmax
+		
+	# top is an array of class instances like the topbase_ptr in PYTHONRT
+	return top
+
+
+def write_topbase(top, filename):
+
+	'''write array of topbase class instances to file'''
+
+	import numpy as np
+
+	file_write = open( filename, 'w')
+
+	for i in range(len(top)):
+
+		## write the summary records
+		file_write.write('PhotTopS  %1d  %1d %3d    %1d     %.6f  %2d\n' %
+                                    ( top[i].Z, top[i].ion, top[i].islp, top[i].l, top[i].E0, top[i].np ))
+
+		n_p = top[i].np
+
+		## write the actual XSs
+		for j in range( n_p ):
+			
+			file_write.write('PhotTop     %.6f %.3e\n' % ( top[i].energy[j], top[i].XS[j]) )
+
+
+	file_write.close()
+		
+	return 0
+
+
+class topbase_class:
+	'''This is a class for topbase photoionization data'''	
+	def __init__(self, nz, ne, islp_init, E0_init, linit, np_init, energies, cross_sections):
+		self.Z = nz
+		self.ion = ne
+		self.islp = islp_init
+		self.l = linit
+		self.E0 = E0_init 
+		self.np = np_init
+		self.energy = energies
+		self.XS = cross_sections
 
 
 
+
+# set some standard parameters
+def setpars():
+    
+	print 'Setting plot parameters for matplotlib.'
+	plt.rcParams['lines.linewidth'] = 1.0
+	plt.rcParams['axes.linewidth'] = 1.3
+	plt.rcParams['font.family'] = 'serif'
+	plt.rcParams['font.serif'] = 'Times New Roman'
+	plt.rcParams['text.usetex']='True'
+    
+	return 0
+
+
+def check_odd_XS(XS_array, top_record):
+
+	import numpy as np
+
+	Zmatch = ( XS_array.Z == top_record.Z )
+	ionmatch = ( XS_array.ion == top_record.ion )
+	islpmatch = ( XS_array.islp == top_record.islp )
+
+	totalmatch = np.sum(ionmatch * islpmatch * Zmatch)
+
+	if totalmatch != 1 and totalmatch!=0:
+		print "ERROR: Does not equal 1 or zero, exiting"
+		print totalmatch
+		sys.exit()
+
+	return totalmatch
 
 
 
