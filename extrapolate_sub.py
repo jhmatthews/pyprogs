@@ -13,7 +13,6 @@ from math import sqrt, fabs
 from scipy.optimize import curve_fit
 import scipy.optimize as optimization
 import numpy as np
-import classes as cls
 
 ############################################################################
 ## DOFIT FUNCTION
@@ -132,76 +131,27 @@ def gmin(f,a,c,tol=3.0e-8):
 
 ############################################################################
 
-
-def get_odd_XS():
-	'''
-	get_odd_XS is a real kluge, it just returns an array of XS identified by eye
-	as being odd. These XS are then fudged with a nu**-3 extrapolation.
-
-	Returns:
-
-		XS_array 		object array
-						array of XS to fudge in topbase_class format
-
-	Comments:
-
-	'''
-
-
-
-	# Manually identified list of unusual / anomalous XSections
-	XSlist = ["6 2 231", "7 4 121", "7 3 411", \
-	          "7 4 321", "8 3 150", "8 3 141", \
-	          "8 3 151", "8 3 341", "8 3 351", \
-	          "8 3 350", "8 4 211", "8 4 220", \
-	          "8 4 221", "8 5 321", "8 5 121"]
-
-	import numpy as np
-
-	# number of odd XSections
-	n_odd = len(XSlist)
-
-	# create empty object array to store topbase class instances
-	XS_array = np.ndarray( n_odd,dtype=np.object)
-
-	Z, ion, islp = [],[],[]
-
-	# cycle over each XS and place in class instance
-	for i in range(n_odd):
-
-
-		# split string
-		data = XSlist[i].split()
-
-		
-		# get information
-		Z.append (int( data[0]))
-		ion.append( int(data[1]))
-		islp.append(int(data[2]))
-
-	
-		# get topbase class instance
-	XS_array = topbase_class (np.array(Z), np.array(ion), np.array(islp), 0, 0, 0, [], [])
-
-
-	# all done, return array
-	return XS_array
-
-
-
 def read_topbase(filename):
+	'''
+	read in XS info from Topbase XS data in Python format
 
-	import numpy as np
+	:INPUT:
+		filename 		string
+						atomic data filename e.g. topbase_h1_phot.py
+	:OUTPUT:
+		top 			topbase class instance
+						topbase class instance containing information 
+						for this filename
+	'''
 
-	'''read in XS info from Topbase XS data in Python format'''
-
-	Z,ion,islp,l,E0,num_records = sum_records = np.loadtxt( filename, 
+	# read in summary records
+	Z,ion,islp,E0,l,num_records = sum_records = np.loadtxt( filename, 
 			dtype={'names': ('Z', 'ion', 'islp', 'l', 'E0', 'np'), 
 			'formats': ('i4', 'i4', 'i4', 'i4', 'float', 'i4')}, 
                         comments='PhotTop ', delimiter=None, converters=None, 
                         skiprows=0, usecols=(1,2,3,4,5,6), unpack=True, ndmin=0)
 	
-	## then read the actual cross sections
+	# then read the actual cross sections
 	energy, XS = np.loadtxt(filename, dtype='float', 
                         comments='PhotTopS', delimiter=None, converters=None, 
                         skiprows=0, usecols=(1,2), unpack=True, ndmin=0)
@@ -252,7 +202,19 @@ def write_topbase(top, filename):
 
 
 class topbase_class:
-	'''This is a class for topbase photoionization data'''	
+	'''
+	This is a class for topbase photoionization data
+
+	Z 		atomic number
+	ion 	ion stage
+	islp 	islp number (2s+1, l, parity)
+	E0 		threshold energy eV 
+	l 		level
+	np 		number of entries
+	energy 	energies 
+	XS 		cross sections
+	'''	
+
 	def __init__(self, nz, ne, islp_init, E0_init, linit, np_init, energies, cross_sections):
 		self.Z = nz
 		self.ion = ne
@@ -266,29 +228,96 @@ class topbase_class:
 
 
 
-# set some standard parameters
-def setpars():
-    
-	print 'Setting plot parameters for matplotlib.'
-	plt.rcParams['lines.linewidth'] = 1.0
-	plt.rcParams['axes.linewidth'] = 1.3
-	plt.rcParams['font.family'] = 'serif'
-	plt.rcParams['font.serif'] = 'Times New Roman'
-	plt.rcParams['text.usetex']='True'
-    
-	return 0
 
 
-def check_odd_XS(XS_array, top_record):
+
+def get_odd_XS():
+	'''
+	get_odd_XS is a real kluge, it just returns an array of XS identified by eye
+	as being odd. These XS are then fudged with a nu**-3 extrapolation.
+
+	:OUTPUT:
+
+		XS_array 		topbase class instance
+						array of XS to fudge in topbase_class format
+
+	'''
+
+
+
+	# Manually identified list of unusual / anomalous XSections
+	XSlist = ['6 2 220', '7 3  220', '7 4 121', '7 6 311', \
+	'8 3 341', '8 4 211', '8 4 421', \
+	'6 2 231', '7 3 221', '7 4 321', \
+	'8 3 141', '8 3 350', '8 4 220', \
+	'8 5 321', '6 5 111', '7 3 231', \
+	'7 5 200', '8 3 150', '8 3 351', \
+	'8 4 231', '8 6 200', '6 5 311', \
+	'7 3 411', '7 6 111', '8 3 151', \
+	'8 4 200', '8 4 411', '8 7 111']
 
 	import numpy as np
 
+	# number of odd XSections
+	n_odd = len(XSlist)
+
+	# create empty object array to store topbase class instances
+	XS_array = np.ndarray( n_odd,dtype=np.object)
+
+	Z, ion, islp = [],[],[]
+
+	# cycle over each XS and place in class instance
+	for i in range(n_odd):
+
+
+		# split string
+		data = XSlist[i].split()
+
+		
+		# get information
+		Z.append (int( data[0]))
+		ion.append( int(data[1]))
+		islp.append(int(data[2]))
+
+	
+		# get topbase class instance
+	XS_array = topbase_class (np.array(Z), np.array(ion), np.array(islp), 0, 0, 0, [], [])
+
+
+	# all done, return array
+	return XS_array
+
+
+
+def check_odd_XS(XS_array, top_record):
+	'''
+	Routine which checks if the top_record class in question
+	is in the flagged list
+
+	:INPUT:
+		XS_array 		topbase class instance
+						lists of unusual XSections
+
+		top_record 		topbase class instance
+						record to compare
+
+	:OUTPUT:
+		totalmatch		Bool
+						1/True if in list, 0/False if not
+	'''
+
+	import numpy as np
+
+	# create boolean arrays for Z, islp and ion
 	Zmatch = ( XS_array.Z == top_record.Z )
 	ionmatch = ( XS_array.ion == top_record.ion )
 	islpmatch = ( XS_array.islp == top_record.islp )
 
+	# create total boolean array (note * means 'and')
 	totalmatch = np.sum(ionmatch * islpmatch * Zmatch)
 
+
+	# error check
 	if totalmatch != 1 and totalmatch!=0:
 		print "ERROR: Does not equal 1 or zero, exiting"
 		print totalmatch

@@ -21,14 +21,13 @@ returns:
 import os, sys
 import numpy as np
 import pylab
-#from constants import *
 import extrapolate_sub as sub
 
 
 ## we read the functional form and the maximum energy from the command line
 ## they are set to defaults if not read
 func, NEW_MAX_ENERGY, Plot= sub.choose_mode(sys.argv)
-
+legend = True
 
 
 ## open the standard73 atomic data file in order to read topbase filenames
@@ -130,12 +129,21 @@ for i_file in range(n_files):
 
 
 
-		if 'cno' in filename_read:
-			fudge = sub.check_odd_XS ( odd_XS, top[i] )
 
-			if fudge and grad > -2.9:
-				print "odd XS, fudging!"
-				grad = -3
+		fudge = sub.check_odd_XS ( odd_XS, top[i] )
+
+		'''if fudge and grad > -2.5:
+			print "odd XS, fudging!, grad = ", grad
+
+			ldx = np.log10 ( top[i].energy[-1] ) - np.log10 ( top[i].energy[-5] )
+			ldy = np.log10 ( top[i].XS[-1] ) - np.log10 ( top[i].XS[-5] )
+
+
+			# gradient in log space
+			grad = ldy / ldx
+
+			if grad > -2.5:
+				grad = -3'''
 
 
 		logXSmax = np.log10 ( XSmax ) 
@@ -155,34 +163,55 @@ for i_file in range(n_files):
 			topnew[i].XS = np.append ( topnew[i].XS, XSfit )
 			topnew[i].energy = np.append ( topnew[i].energy, E )
 
-
-		print len(topnew[i].XS), n_p + nmore, n_p, nmore
-
+		nfive = ( top[i].Z == "7" and top[i].ion == "5"  )
+		ofour = ( top[i].Z == "8" and top[i].ion == "4"  )
 
 		## plot up to check fits
 		if Plot:
-			pylab.loglog(top[i].energy, top[i].XS, 'k--')
-			pylab.loglog(topnew[i].energy, topnew[i].XS, c='g')
-			
-			print 'summary', top[i].Z, top[i].ion, top[i].islp, top[i].l, top[i].E0
 
-			First_time_round = i_file == 0 and i == 0
+			'''First_time_round = i_file == 0 and i == 0
 
-			if First_time_round == False:
+			if First_time_round == False and i_file == 3 and fudge_last:
 
-				if islp_last != top[i].islp or ion_last != top[i].ion or Z_last != top[i].Z:
+				if islp_last != top[i].islp or ion_last != top[i].ion or Z_last != top[i].Z or l_last != top[i].l:
 
-					print 'newsave Dropbox/XS_77/figures_%s/XS_%i_%i_%i.png' % ( filename_last, Z_last, ion_last, islp_last)
+					print 'newsave Dropbox/XS_77/figures_%s/XS_%i_%i_%i_%i.png' % ( filename_last, Z_last, ion_last, islp_last, l_last)
 					pylab.xlabel('Energy eV')
 					pylab.ylabel('XS cm^-2')
 					pylab.savefig('/Users/jmatthews/Dropbox/XS_77/figures_%s/XS_%i_%i_%i.png' %
 				                  ( filename_last, Z_last, ion_last, islp_last))
+
+					#if fudge_last: pylab.show()
+
 					pylab.clf()
+					legend = True'''
+
+			if fudge:
+				pylab.loglog(top[i].energy, top[i].XS, 'r', label = 'standard73')
+				pylab.loglog(topnew[i].energy, topnew[i].XS, 'k--', label = 'standard77')
+				print 'newsave Dropbox/XS_77/figures_%s/XS_%i_%i_%i_%i.png' % ( filename_last, Z_last, ion_last, islp_last, l_last)
+				pylab.xlabel('Energy eV')
+				pylab.ylabel('XS cm^-2')
+				pylab.savefig('/Users/jmatthews/Dropbox/XS_77/figures_%s/XS_%i_%i_%i_%i.png' %
+				                  ( filename_read[14:-3], topnew[i].Z, topnew[i].ion, topnew[i].islp, top[i].l))
+
+			#if fudge: pylab.show()
+			
+			print 'summary', top[i].Z, top[i].ion, top[i].islp, top[i].l, top[i].E0
+
+			if legend:
+				pylab.legend()
+				legend = False
+
+		
 
 		islp_last = top[i].islp
 		ion_last = top[i].ion
 		Z_last = top[i].Z
 		filename_last = filename_read[14:-3]
+		l_last = top[i].l
+
+		fudge_last = fudge
 	
 
 
