@@ -145,7 +145,7 @@ def read_topbase(filename):
 	'''
 
 	# read in summary records
-	Z,ion,islp,E0,l,num_records = sum_records = np.loadtxt( filename, 
+	Z,ion,islp,l, E0, num_records = sum_records = np.loadtxt( filename, 
 			dtype={'names': ('Z', 'ion', 'islp', 'l', 'E0', 'np'), 
 			'formats': ('i4', 'i4', 'i4', 'i4', 'float', 'i4')}, 
                         comments='PhotTop ', delimiter=None, converters=None, 
@@ -215,7 +215,7 @@ class topbase_class:
 	XS 		cross sections
 	'''	
 
-	def __init__(self, nz, ne, islp_init, E0_init, linit, np_init, energies, cross_sections):
+	def __init__(self, nz, ne, islp_init, linit, E0_init, np_init, energies, cross_sections):
 		self.Z = nz
 		self.ion = ne
 		self.islp = islp_init
@@ -224,68 +224,6 @@ class topbase_class:
 		self.np = np_init
 		self.energy = energies
 		self.XS = cross_sections
-
-
-
-
-
-
-
-def get_odd_XS():
-	'''
-	get_odd_XS is a real kluge, it just returns an array of XS identified by eye
-	as being odd. These XS are then fudged with a nu**-3 extrapolation.
-
-	:OUTPUT:
-
-		XS_array 		topbase class instance
-						array of XS to fudge in topbase_class format
-
-	'''
-
-
-
-	# Manually identified list of unusual / anomalous XSections
-	XSlist = ['6 2 220', '7 3  220', '7 4 121', '7 6 311', \
-	'8 3 341', '8 4 211', '8 4 421', \
-	'6 2 231', '7 3 221', '7 4 321', \
-	'8 3 141', '8 3 350', '8 4 220', \
-	'8 5 321', '6 5 111', '7 3 231', \
-	'7 5 200', '8 3 150', '8 3 351', \
-	'8 4 231', '8 6 200', '6 5 311', \
-	'7 3 411', '7 6 111', '8 3 151', \
-	'8 4 200', '8 4 411', '8 7 111']
-
-	import numpy as np
-
-	# number of odd XSections
-	n_odd = len(XSlist)
-
-	# create empty object array to store topbase class instances
-	XS_array = np.ndarray( n_odd,dtype=np.object)
-
-	Z, ion, islp = [],[],[]
-
-	# cycle over each XS and place in class instance
-	for i in range(n_odd):
-
-
-		# split string
-		data = XSlist[i].split()
-
-		
-		# get information
-		Z.append (int( data[0]))
-		ion.append( int(data[1]))
-		islp.append(int(data[2]))
-
-	
-		# get topbase class instance
-	XS_array = topbase_class (np.array(Z), np.array(ion), np.array(islp), 0, 0, 0, [], [])
-
-
-	# all done, return array
-	return XS_array
 
 
 
@@ -312,9 +250,10 @@ def check_odd_XS(XS_array, top_record):
 	Zmatch = ( XS_array.Z == top_record.Z )
 	ionmatch = ( XS_array.ion == top_record.ion )
 	islpmatch = ( XS_array.islp == top_record.islp )
+	levmatch = ( XS_array.l == top_record.l )
 
 	# create total boolean array (note * means 'and')
-	totalmatch = np.sum(ionmatch * islpmatch * Zmatch)
+	totalmatch = np.sum(ionmatch * islpmatch * Zmatch * levmatch)
 
 
 	# error check
@@ -324,6 +263,105 @@ def check_odd_XS(XS_array, top_record):
 		sys.exit()
 
 	return totalmatch
+
+
+
+
+def get_odd_XS():
+	'''
+	get_odd_XS is a real kluge, it just returns an array of XS identified by eye
+	as being odd. These XS are then fudged with a nu**-3 extrapolation.
+
+	:OUTPUT:
+
+		XS_array 		topbase class instance
+						array of XS to fudge in topbase_class format
+
+	'''
+
+
+
+	# Manually identified list of unusual / anomalous XSections
+	XSlist = ['6 2 220 3', \
+	'6 2 220 4', \
+	'6 2 231 4', \
+	'6 2 231 5', \
+	'6 2 231 6', \
+	'6 5 111 6', \
+	'6 5 311 6', \
+	'6 5 311 7', \
+	'7 5 200 6', \
+	'7 6 111 6', \
+	'7 6 311 7', \
+	'8 3 141 1', \
+	'8 3 141 2', \
+	'8 3 141 3', \
+	'8 3 141 4', \
+	'8 3 141 5', \
+	'8 3 150 1', \
+	'8 3 150 2', \
+	'8 3 150 3', \
+	'8 3 151 1', \
+	'8 3 151 3', \
+	'8 3 151 4', \
+	'8 3 341 1', \
+	'8 3 341 2', \
+	'8 3 341 3', \
+	'8 3 341 4', \
+	'8 3 341 5', \
+	'8 3 350 1', \
+	'8 3 350 2', \
+	'8 3 350 3', \
+	'8 3 351 1', \
+	'8 3 351 2', \
+	'8 3 351 3', \
+	'8 3 351 4', \
+	'8 3 351 5', \
+	'8 3 351 6', \
+	'8 3 351 7', \
+	'8 3 351 8', \
+	'8 4 200 9', \
+	'8 4 211 14', \
+	'8 4 220 11', \
+	'8 4 231 1', \
+	'8 4 231 7', \
+	'8 4 411 4', \
+	'8 4 421 2', \
+	'8 6 200 8']
+
+	import numpy as np
+
+	# number of odd XSections
+	n_odd = len(XSlist)
+
+	# create empty object array to store topbase class instances
+	XS_array = np.ndarray( n_odd,dtype=np.object)
+
+	Z, ion, islp, l = [],[],[], []
+
+	# cycle over each XS and place in class instance
+	for i in range(n_odd):
+
+
+		# split string
+		data = XSlist[i].split()
+
+		
+		# get information
+		Z.append (int( data[0]))
+		ion.append( int(data[1]))
+		islp.append(int(data[2]))
+		l.append(int(data[3]))
+
+	
+		# get topbase class instance
+	XS_array = topbase_class (np.array(Z), np.array(ion), np.array(islp), np.array(l), 0, 0, [], [])
+
+
+	# all done, return array
+	return XS_array
+
+
 
 
 

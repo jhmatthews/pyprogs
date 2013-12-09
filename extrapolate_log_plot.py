@@ -140,7 +140,7 @@ for i_file in range(n_files):
 
 
 		if fudge and grad > -2.5:
-			gradold = grad
+			print "odd XS, fudging!, grad = ", grad
 
 			ldx = np.log10 ( top[i].energy[-1] ) - np.log10 ( top[i].energy[-5] )
 			ldy = np.log10 ( top[i].XS[-1] ) - np.log10 ( top[i].XS[-5] )
@@ -152,9 +152,6 @@ for i_file in range(n_files):
 			if grad > -2.5:
 				grad = -3
 
-			print "odd XS, fudging!, grad = %.4f -> %.4f" % (gradold, grad)
-		elif fudge:
-			print "odd XS, but gradient = %.4f" % grad
 
 		logXSmax = np.log10 ( XSmax ) 
 		logEmax = np.log10 ( Emax ) 
@@ -173,7 +170,46 @@ for i_file in range(n_files):
 			topnew[i].XS = np.append ( topnew[i].XS, XSfit )
 			topnew[i].energy = np.append ( topnew[i].energy, E )
 
+		nfive = ( top[i].Z == "7" and top[i].ion == "5"  )
+		ofour = ( top[i].Z == "8" and top[i].ion == "4"  )
 
+		## plot up to check fits
+		if Plot:
+
+			'''First_time_round = i_file == 0 and i == 0
+
+			if First_time_round == False and i_file == 3 and fudge_last:
+
+				if islp_last != top[i].islp or ion_last != top[i].ion or Z_last != top[i].Z or l_last != top[i].l:
+
+					print 'newsave Dropbox/XS_77/figures_%s/XS_%i_%i_%i_%i.png' % ( filename_last, Z_last, ion_last, islp_last, l_last)
+					pylab.xlabel('Energy eV')
+					pylab.ylabel('XS cm^-2')
+					pylab.savefig('/Users/jmatthews/Dropbox/XS_77/figures_%s/XS_%i_%i_%i.png' %
+				                  ( filename_last, Z_last, ion_last, islp_last))
+
+					#if fudge_last: pylab.show()
+
+					pylab.clf()
+					legend = True'''
+
+			if fudge:
+				pylab.loglog(top[i].energy, top[i].XS, 'r', label = 'standard73')
+				pylab.loglog(topnew[i].energy, topnew[i].XS, 'k--', label = 'standard77')
+				print 'newsave Dropbox/XS_77/figures_%s/XS_%i_%i_%i_%i.png' % ( filename_last, Z_last, ion_last, islp_last, l_last)
+				pylab.xlabel('Energy eV')
+				pylab.ylabel('XS cm^-2')
+				pylab.savefig('/Users/jmatthews/Dropbox/XS_77/figures_%s/XS_%i_%i_%i_%i.png' %
+				                  ( filename_read[14:-3], topnew[i].Z, topnew[i].ion, topnew[i].islp, top[i].l))
+				pylab.clf()
+
+			#if fudge: pylab.show()
+			
+			if fudge: print 'summary', top[i].Z, top[i].ion, top[i].islp, top[i].l, top[i].E0
+
+			if legend and fudge:
+				pylab.legend()
+				legend = False
 
 		
 
