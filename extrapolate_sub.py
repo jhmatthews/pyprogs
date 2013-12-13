@@ -10,57 +10,7 @@
 
 ## import modules
 from math import sqrt, fabs
-from scipy.optimize import curve_fit
-import scipy.optimize as optimization
 import numpy as np
-
-############################################################################
-## DOFIT FUNCTION
-
-
-def dofit(fmode, x, y, nmore, MAX_EXTRAP, n_p):
-
-
-	'''fitting function for XSs
-	
-	extrapoltes data in numpy arrays (x, y)
-	using functional form of func to maximum 
-	of x=MAX_EXTRAP, using nmore extra points
-	n_p is the entry in the array we start at
-	specifically used for topbase photoionization
-	XSs extrapolation
-	''' 
-
-	xmin, xmax = x[0], x[n_p-1]
-
-	ymax = y[n_p-1]
-
-	dx = (MAX_EXTRAP - xmax) / nmore
-
-	popt, pcov = optimization.curve_fit(func, x, y, x0=None, sigma=None)
-
-	for i_x in range(1, nmore):
-
-			dx = np.log10( ( MAX_EXTRAP - Emax) ) / nmore 
-			X_val = xmax + 10.0**( i_x * dx) 
-			temp_energy=np.append ( x, X_val)
-			
-			if fmode==1:	
-				yfit =  func( E, popt[0], popt[1])
-			if fmode==2:
-				yfit =  func( E, popt[0], popt[1], popt[2])
-			if fmode==3:
-				yfit =  func( E, popt[0], popt[1], popt[2], popt[3])
-			if fmode==4:
-				yfit =  func( E, popt[0], popt[1], popt[2], popt[3], popt[4])
-			if fmode==5:
-				yfit =  func( E, popt[0], popt[1])
-
-			yfit =  func( E, popt)
-
-			y = np.append( y, yfit )
-
-	return x, y
 
 
 
