@@ -193,7 +193,7 @@ for i_file in range(n_files):
 
 	sys.stderr.write ('Writing to file...')
 
-	sub.write_topbase ( top, filename_write)
+	sub.write_topbase ( topnew, filename_write)
 
 	sys.stderr.write ('done.\n')
 
