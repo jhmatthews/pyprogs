@@ -5,6 +5,7 @@
 Subroutines for create_he_chianti.py
 '''
 import numpy as np
+import sys
 
 ANGSTROM  = 1.e-8
 C  = 2.997925e10
@@ -591,6 +592,115 @@ def compress_levels (nistclass):
 
 	return nistclass_new
 
+def read_topbase_levels(filename):
+
+	'''read in level info from original topbase levels and 
+	place in class instance array'''
+
+	level_array_read = np.loadtxt(filename, comments='#', unpack = True, dtype = 'string')
+	
+	level_array_read = np.transpose(level_array_read)
+
+	lev = np.ndarray( len (level_array_read), dtype=np.object)
+	
+	for i in range(len(lev)):
+
+		ne = int(level_array_read[i][2])
+		z = int (level_array_read[i][1])
+		ion = int (level_array_read[i][0])
+
+		lvl = int (level_array_read[i][3])
+		
+		E = float (level_array_read[i][-4])
+		g = int (level_array_read[i][-2])
+		rad_rate = float (level_array_read[i][-1])
+
+		nnstring =  str  (level_array_read[i][-5])
+		
+		lev[i] = level(z, ion, lvl, 0.0, E, g, rad_rate, "", nnstring)
+		
+	# level is an array of class instances like the line_ptr in PYTHONRT
+	return lev
+
+
+def read_topbase_xs(filename, suffix="Mac"):
+
+	'''this needs to be done manually, annoyingly, as format of
+	topbase has no PhotTop or PhotMac string'''
+
+	f = open(filename, "r")
+
+	i = -1
+
+	top = []
+
+	for line in f:
+
+		data = line.split()
+
+		if len(data) == 2:
+			top_dummy.energy[j] = float(data[0]) * RYDBERG
+			top_dummy.XS[j] = 1e-18 * float(data[1])
+
+			if j > top_dummy.np:
+				print "error, j > top[i].np"
+
+			j += 1
+
+		elif len(data) == 7:
+			i += 1 
+			j = 0
+
+			if i>0: top.append(top_dummy)
+
+
+			Z = int(data[1])
+			ion = int(data[2])
+			islp = int(data[3])
+			l = int(data[4])
+			E = -1 * float(data[5]) * RYDBERG
+			num = int(data[6])
+
+			top_dummy = topbase_class (Z, ion, islp, l, E, num, np.ndarray( num, dtype=np.object), np.ndarray( num, dtype=np.object))
+
+		else: 
+			print "Didn't understand data, exiting"
+			print line
+			sys.exit()
+
+	top = np.array(top)
+
+	return top
+
+
+
+
+def write_topbase_xs(top, filename, suffix="Mac"):
+
+	'''write array of topbase class instances to file'''
+
+
+	file_write = open( filename, 'w')
+
+	for i in range(len(top)):
+
+		## write the summary records
+		file_write.write('Phot%sS  %1d  %1d %3d    %1d     %.6f  %2d\n' %
+                                    ( suffix, top[i].Z, top[i].ion, top[i].islp, top[i].l, top[i].E0, top[i].np ))
+
+		n_p = top[i].np
+
+		## write the actual XSs
+		for j in range( n_p ):
+			
+			file_write.write('Phot%s     %.6f %.3e\n' % (suffix,  top[i].energy[j], top[i].XS[j]) )
+
+
+	file_write.close()
+		
+	return 0
+
+
 
 
 
@@ -709,3 +819,29 @@ class chianti_rad:
 		self.note_up = _note_up
 		self.J_low = _J_low
 		self.J_up = _J_up
+
+
+
+class topbase_class:
+	'''
+	This is a class for topbase photoionization data
+
+	Z 		atomic number
+	ion 	ion stage
+	islp 	islp number (2s+1, l, parity)
+	E0 		threshold energy eV 
+	l 		level
+	np 		number of entries
+	energy 	energies 
+	XS 		cross sections
+	'''	
+
+	def __init__(self, nz, ne, islp_init, linit, E0_init, np_init, energies, cross_sections):
+		self.Z = nz
+		self.ion = ne
+		self.islp = islp_init
+		self.l = linit
+		self.E0 = E0_init 
+		self.np = np_init
+		self.energy = energies
+		self.XS = cross_sections

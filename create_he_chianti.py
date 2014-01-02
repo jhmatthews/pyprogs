@@ -51,6 +51,11 @@ lines = sub.read_line_info ("data/atomic_macro/h10_lines.py")
 
 
 
+topphot = sub.read_topbase_xs("topbase_he_xs")
+
+sub.write_topbase_xs(topphot, "he_top_phot_macro.py")
+
+
 
 
 
