@@ -33,13 +33,13 @@ lev_he1 = sub.chianti_to_lev (level_info, ion_threshold, Z, 1)
 
 #lev_he1, maplev = sub.general_level_compress (lev_he1_old, delta_E = dE)
 
-sub.write_level_file (lev_he1, "test")
+sub.write_level_file (lev_he1, "data/atomic_macro/he_test1_levels.py", levmax = 10)
 
 line = sub.chianti_to_line (line_info, level_info, Z, 1)
 
 #line = sub.lines_for_compressed_levels ( line, lev_he1, lev_he1_old, maplev)
 
-sub.write_line_file (line, "test_lines")
+sub.write_line_file (line, "data/atomic_macro/he_test1_lines.py", levmax = 10)
 
 
 
@@ -53,7 +53,7 @@ level_info, line_info = sub.read_chianti_data(level_filename="he_2.elvlc", radia
 
 lev_he2 = sub.chianti_to_lev (level_info, ion_threshold, Z, 2, E0_init = 24.587387512)
 
-sub.write_level_file (lev_he2, "test", append = True)
+sub.write_level_file (lev_he2, "data/atomic_macro/he_test1_levels.py", levmax = 10, append = True)
 
 
 
@@ -63,7 +63,7 @@ line = sub.chianti_to_line (line_info, level_info, Z, 2)
 
 #line = sub.lines_for_compressed_levels ( line, lev_he1, lev_he1_old, maplev)
 
-sub.write_line_file (line, "test_lines", append = True)
+sub.write_line_file (line, "data/atomic_macro/he_test1_lines.py", levmax = 10,  append = True)
 
 
 

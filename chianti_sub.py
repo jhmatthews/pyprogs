@@ -258,7 +258,7 @@ READ AND WRITE PYTHON ROUTINES
 
 
 
-def write_line_file(lin, filename, append=False):
+def write_line_file(lin, filename, levmax = 1e50, append=False):
 	'''
 	write information from array of line class instances to a filename of format
 
@@ -292,7 +292,8 @@ def write_line_file(lin, filename, append=False):
 
 		l = lin[i]
 
-		out.write("LinMacro   %i  %i   %11.5f  %.5f  %i   %i   %.5f   %.5f  %i  %i\n" %
+		if l.lu <= levmax:
+			out.write("LinMacro   %i  %i   %11.5f  %.5f  %i   %i   %.5f   %.5f  %i  %i\n" %
 			       (l.z, l.ion, l.wavelength, l.osc, l.g_l, l.g_u, l.e_l, l.e_u, l.ll, l.lu))
 
 	out.close()
@@ -328,7 +329,7 @@ def read_line_info(filename):
 	return lines
 
 
-def write_level_file(lev, filename, append = False):
+def write_level_file(lev, filename, levmax = 1e50, append = False):
 
 	'''
 	write information from array of level class instances to a filename of format
@@ -364,8 +365,10 @@ def write_level_file(lev, filename, append = False):
 		if l.ion != iprev:
 			out.write("#\n#\n")
 
-		out.write("LevMacro   %i  %i  %3i  %.5f   %.5f   %3i   %8.2e  %s  %s\n" %
-			       (l.z, l.ion, l.lvl, l.ionpot, l.E, l.g, l.rad_rate, l.bracks, l.nnstring))
+		if l.lvl <= levmax:
+
+			out.write("LevMacro   %i  %i  %3i  %.5f   %.5f   %3i   %8.2e  %s  %s\n" %
+				       (l.z, l.ion, l.lvl, l.ionpot, l.E, l.g, l.rad_rate, l.bracks, l.nnstring))
 
 		iprev = l.ion
 
