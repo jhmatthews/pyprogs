@@ -22,6 +22,7 @@ HEV = 4.13620e-15	# Planck's constant in eV
 
 Z = 2
 ion_threshold = 24.587387512
+dE = 0.001
 
 
 # first create level file
@@ -30,30 +31,51 @@ level_info, line_info = sub.read_chianti_data(level_filename="he_1.elvlc", radia
 
 lev_he1 = sub.chianti_to_lev (level_info, ion_threshold, Z, 1)
 
+#lev_he1, maplev = sub.general_level_compress (lev_he1_old, delta_E = dE)
+
 sub.write_level_file (lev_he1, "test")
 
+line = sub.chianti_to_line (line_info, level_info, Z, 1)
+
+#line = sub.lines_for_compressed_levels ( line, lev_he1, lev_he1_old, maplev)
+
+sub.write_line_file (line, "test_lines")
 
 
-lev = sub.read_level_info ("data/atomic_macro/h10_levels.py")
 
-lev_he2 = sub.convert_h_to_hydrogenic_class (lev, Z, 78.733180)
+
+
+#lev = sub.read_level_info ("data/atomic_macro/h10_levels.py")
+ion_threshold = 78.733180
+
+#lev_he2 = sub.convert_h_to_hydrogenic_class (lev, Z, 78.733180)
+level_info, line_info = sub.read_chianti_data(level_filename="he_2.elvlc", radiative_filename="he_2.wgfa")
+
+lev_he2 = sub.chianti_to_lev (level_info, ion_threshold, Z, 2, E0_init = 24.587387512)
 
 sub.write_level_file (lev_he2, "test", append = True)
 
 
 
 
-line = sub.chianti_to_line (line_info, level_info, Z, 1)
-sub.write_line_file (line, "test_lines")
 
-lines = sub.read_line_info ("data/atomic_macro/h10_lines.py")
+line = sub.chianti_to_line (line_info, level_info, Z, 2)
+
+#line = sub.lines_for_compressed_levels ( line, lev_he1, lev_he1_old, maplev)
+
+sub.write_line_file (line, "test_lines", append = True)
 
 
 
 
-topphot = sub.read_topbase_xs("topbase_he_xs")
 
-sub.write_topbase_xs(topphot, "he_top_phot_macro.py")
+
+
+#lines = sub.read_line_info ("data/atomic_macro/h10_lines.py")
+
+#topphot = sub.read_topbase_xs("topbase_he_xs")
+
+#sub.write_topbase_xs(topphot, "he_top_phot_macro.py")
 
 
 

@@ -6,6 +6,7 @@ Subroutines for create_he_chianti.py
 '''
 import numpy as np
 import sys
+import copy
 
 ANGSTROM  = 1.e-8
 C  = 2.997925e10
@@ -91,7 +92,7 @@ def read_chianti_data ( level_filename="h_1.elvlc", radiative_filename="h_1.wgfa
 
 
 
-def chianti_to_lev (level_info, E_thres, Z, ion):
+def chianti_to_lev (level_info, E_thres, Z, ion, E0_init=0.000):
 	'''
 	create a level class instance for writing to file 
 	from chianti data 
@@ -117,7 +118,7 @@ def chianti_to_lev (level_info, E_thres, Z, ion):
 	else:
 		cont = 0
 
-	levels = np.ndarray (nlevels, dtype = np.object)
+	levels = np.ndarray (nlevels + cont, dtype = np.object)
 
 
 	for n in range(0, nlevels + cont):
@@ -125,7 +126,7 @@ def chianti_to_lev (level_info, E_thres, Z, ion):
 		if n < nlevels:						# non continuum level
 			lvl = n+1
 
-			energy_ev = level_info[n].E_obs2 * RYDBERG
+			energy_ev = E0_init + level_info[n].E_obs2 * RYDBERG
 
 			ionpot = energy_ev - E_thres 
 
@@ -157,6 +158,8 @@ def chianti_to_lev (level_info, E_thres, Z, ion):
 
 		levels[n] = level (Z, ion, lvl, ionpot, energy_ev, g, rad_rate, "()", nstring)
 
+		print lvl 
+
 	return levels 
 
 
@@ -187,14 +190,20 @@ def chianti_to_line (line_info, chianti_levels,  Z, ion):
 
 	for i in range(nlines):
 
-		ll, il  = where_split_level(chianti_levels, line_info[i].note_low, line_info[i].J_low)
+		il  = where_in_level_list (line_info[i].ll, chianti_levels)
 
-		lu, iu  = where_split_level(chianti_levels, line_info[i].note_up, line_info[i].J_up)
+		iu  = where_in_level_list (line_info[i].lu, chianti_levels)
+
+		ll = line_info[i].ll
+		lu = line_info[i].lu
 
 		Eu = chianti_levels[iu].E_obs2 * RYDBERG
 		El = chianti_levels[il].E_obs2 * RYDBERG
 
-		print iu, il, lu, ll 
+		print iu, il, lu, ll, line_info[i].note_low, line_info[i].J_low, line_info[i].note_up, line_info[i].J_up
+
+		if ll > lu:
+			print ll, lu, i, line_info[i].wave/ANGSTROM, El, Eu
 
 		gl = 2*chianti_levels[il].J + 1
 		gu = 2*chianti_levels[iu].J + 1
@@ -218,8 +227,25 @@ def where_split_level(chianti_levels, notation, J):
 
 	if nlev == None:
 		print "No level found"
+		sys.exit()
 
-	return nlev, ifind 
+	return nlev, ifind
+
+def where_in_level_list(lvl, chianti_levels):
+	
+	ifind = None
+
+	for i in range(len(chianti_levels)):	
+
+		if chianti_levels[i].index == lvl:
+			ifind = i
+
+	if ifind == None:
+		print "No level found"
+		sys.exit()
+
+	return ifind
+
 
 
 
@@ -232,7 +258,7 @@ READ AND WRITE PYTHON ROUTINES
 
 
 
-def write_line_file(lin, filename):
+def write_line_file(lin, filename, append=False):
 	'''
 	write information from array of line class instances to a filename of format
 
@@ -253,8 +279,12 @@ def write_line_file(lin, filename):
 #        z ion       lambda      f         gl  gu    el          eu        ll   lu
 #
 '''
+	if append:
+		write_string = "a"
+	else:
+		write_string = "w"
 
-	out = open(filename, "w")
+	out = open(filename, write_string)
 
 	out.write(header)
 
@@ -508,6 +538,206 @@ def nist_to_lev(nistclass, threshold_energy):
 	return lev
 
 
+def general_level_compress (levels, mode = 0, delta_E = 0.001):
+
+	''' compress levels in a level class '''
+
+	nlevels_original = len(levels)
+
+	levnew = []
+
+	Elast = 1e50
+
+	lvl = 1
+
+	Esum = levels[0].E * levels[0].g
+	ionpotsum = levels[0].ionpot * levels[0].g
+	gsum = levels[0].g 
+
+	last_lev_class = levels[0]
+
+
+	indexes= []
+	index_count = 1
+
+	for i in range(nlevels_original):
+
+		print gsum, levels[i].g
+
+		if abs(levels[i].E - Elast) > delta_E:
+
+			Esum /= gsum
+			ionpotsum /= gsum 
+
+			last_lev_class.E = Esum 
+			last_lev_class.g = gsum
+			last_lev_class.ionpot = ionpotsum
+
+			last_lev_class.lvl = lvl
+
+			levnew.append( last_lev_class )
+
+			for j in range(index_count):
+
+				indexes.append(lvl-1)
+
+				index_count = 0
+
+			lvl += 1
+
+			Esum = 0.0
+			gsum = 0
+			ionpotsum = 0.0
+
+
+
+
+		Esum += levels[i].E * levels[i].g
+		ionpotsum += levels[i].ionpot * levels[i].g
+		gsum += levels[i].g 
+
+
+		# deep copy need as object - can't just reference
+		last_lev_class = copy.deepcopy(levels[i])	
+
+			
+		Elast = levels[i].E
+
+		index_count += 1
+
+
+
+	print len(indexes), len(levels)
+
+	levnew = np.array(levnew)
+
+	indexes = np.array(indexes)
+
+	return levnew, indexes
+
+
+
+
+
+def lines_for_compressed_levels (lines, levels, old_levels, indexes):
+
+	lines_new = []
+
+	nlines_old = len(lines)
+
+
+
+	for i in range(nlines_old):
+
+		new_index_l = 1e20
+		new_index_u = 1e20
+
+		for j in range(len(old_levels)):
+
+			if lines[i].ll == old_levels[j].lvl:
+				new_index_l = indexes[j]
+
+			if lines[i].lu == old_levels[j].lvl:
+				new_index_u = indexes[j]
+
+		gl, gu = levels[new_index_l].g, levels[new_index_u].g
+		ll, lu = levels[new_index_l].lvl, levels[new_index_u].lvl
+		el, eu = levels[new_index_l].E, levels[new_index_u].E
+
+
+		l = line (lines[i].z, lines[i].ion, lines[i].wavelength, lines[i].freq, lines[i].osc, gl, gu, el, eu, ll, lu)
+
+		lines_new.append (l)
+
+
+	# check for duplicates
+	# oscillator strengths is weighted by statistical weight
+	# frequency is weighted by statictial weight * oscillatorstrength
+
+	lines_new_2 = []
+	nlines = len(lines_new)
+
+	print nlines, nlines_old
+
+	for i in range(nlines):
+
+		Newline = True
+
+		for j in range(len(lines_new_2)):
+
+			# check if we've already done this line, if so it's not a newline!
+			if lines_new_2[j].ll == lines_new[i].ll and lines_new_2[j].lu == lines_new[i].lu:
+				Newline = False
+
+
+		if Newline:
+
+			duplicates = 0
+
+			fsum_weighted = 0.001	# weighted oscilaltor strength
+			gsum = 0.0
+			freq_weighted = 0.001	# weighted wavelength
+
+			newline_instance = copy.deepcopy (lines_new[i])
+
+			for j in range(nlines):
+
+				# check for duplicate line
+				if lines_new[i].ll == lines_new[j].ll and lines_new[i].lu == lines_new[j].lu:
+
+					# it's a duplicate, record sums of split levels
+					try: 
+						freq = C / (lines[j].wavelength * ANGSTROM)
+					except ZeroDivisionError:
+						freq = 1e50
+
+					g_ratio = (1.0 * lines[j].g_l ) / lines[j].g_u
+					fsum_weighted += lines[j].osc * g_ratio
+					gsum += g_ratio
+					freq_weighted += freq * lines[j].osc * g_ratio
+
+					if lines[j].osc == 0:
+						print lines_new[i].ll, lines_new[i].lu, gsum, g_ratio
+
+					duplicates+=1
+
+
+
+			# get weighted averages
+			newline_instance.g = gsum
+			freq_ave = freq_weighted / fsum_weighted
+			newline_instance.wavelength = (C / freq_ave) / ANGSTROM
+			newline_instance.osc = fsum_weighted / gsum 
+
+			if newline_instance.lu == newline_instance.ll:
+				print ""
+				#print newline_instance.ll, newline_instance.lu
+			else:
+				lines_new_2.append (newline_instance)
+
+				print lines_new[i].lu,"->", lines_new[i].ll,":", (C / freq_ave) / ANGSTROM, lines[i].wavelength, duplicates
+
+
+
+	print len(lines_new_2), nlines_old
+
+
+
+	lines_new = np.array(lines_new_2)
+
+	return lines_new
+
+
+
+
+
+
+
+
+
+
+
+
 
 def compress_levels (nistclass):
 
@@ -663,7 +893,7 @@ def read_topbase_xs(filename, suffix="Mac"):
 
 			top_dummy = topbase_class (Z, ion, islp, l, E, num, np.ndarray( num, dtype=np.object), np.ndarray( num, dtype=np.object))
 
-		else: 
+		elif data[0]!="#": 
 			print "Didn't understand data, exiting"
 			print line
 			sys.exit()
