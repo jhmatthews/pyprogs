@@ -132,7 +132,12 @@ def chianti_to_lev (level_info, E_thres, Z, ion, E0_init=0.000):
 
 			g = level_info[n].multiplicity
 
-			nstring = level_info[n].notation
+			if "." in level_info[n].notation:
+				nstring = level_info[n].notation[0:2] + " " + level_info[n].notation[3:] 
+			elif level_info[n].notation == "1s2":
+				nstring = level_info[n].notation
+			else:
+				nstring = "() " + level_info[n].notation
 
 
 		elif n == nlevels:				# then this is the continuum level
@@ -156,7 +161,7 @@ def chianti_to_lev (level_info, E_thres, Z, ion, E0_init=0.000):
 			rad_rate = 1.00e-9
 
 
-		levels[n] = level (Z, ion, lvl, ionpot, energy_ev, g, rad_rate, "()", nstring)
+		levels[n] = level (Z, ion, lvl, ionpot, energy_ev, g, rad_rate, nstring)
 
 		print lvl 
 
@@ -165,7 +170,7 @@ def chianti_to_lev (level_info, E_thres, Z, ion, E0_init=0.000):
 
 
 
-def chianti_to_line (line_info, chianti_levels,  Z, ion):
+def chianti_to_line (line_info, chianti_levels,  Z, ion, E0_init = 0.0):
 	'''
 	create a line class instance for writing to file 
 	from chianti data 
@@ -197,10 +202,12 @@ def chianti_to_line (line_info, chianti_levels,  Z, ion):
 		ll = line_info[i].ll
 		lu = line_info[i].lu
 
-		Eu = chianti_levels[iu].E_obs2 * RYDBERG
-		El = chianti_levels[il].E_obs2 * RYDBERG
+		Eu = E0_init + chianti_levels[iu].E_obs2 * RYDBERG
+		El = E0_init + chianti_levels[il].E_obs2 * RYDBERG
 
-		print iu, il, lu, ll, line_info[i].note_low, line_info[i].J_low, line_info[i].note_up, line_info[i].J_up
+		print iu, lu, chianti_levels[iu].index, Eu
+
+		#print iu, il, lu, ll, line_info[i].note_low, line_info[i].J_low, line_info[i].note_up, line_info[i].J_up
 
 		if ll > lu:
 			print ll, lu, i, line_info[i].wave/ANGSTROM, El, Eu
@@ -230,6 +237,9 @@ def where_split_level(chianti_levels, notation, J):
 		sys.exit()
 
 	return nlev, ifind
+
+
+
 
 def where_in_level_list(lvl, chianti_levels):
 	
@@ -367,8 +377,8 @@ def write_level_file(lev, filename, levmax = 1e50, append = False):
 
 		if l.lvl <= levmax:
 
-			out.write("LevMacro   %i  %i  %3i  %.5f   %.5f   %3i   %8.2e  %s  %s\n" %
-				       (l.z, l.ion, l.lvl, l.ionpot, l.E, l.g, l.rad_rate, l.bracks, l.nnstring))
+			out.write("LevMacro   %i  %i  %3i  %.5f   %.5f   %3i   %8.2e  %s\n" %
+				       (l.z, l.ion, l.lvl, l.ionpot, l.E, l.g, l.rad_rate, l.nnstring))
 
 		iprev = l.ion
 
@@ -397,9 +407,9 @@ def read_level_info(filename):
 		g = int (level_array_read[i][6])
 		rad_rate = float (level_array_read[i][7])
 		brack =  str (level_array_read[i][8])
-		nnstring =  str  (level_array_read[i][9])
+		nnstring =  str  (level_array_read[i][8]) + " " +  str  (level_array_read[i][9])
 		
-		lev[i] = level(z, ion, lvl, ionpot, E, g, rad_rate, brack, nnstring)
+		lev[i] = level(z, ion, lvl, ionpot, E, g, rad_rate, nnstring)
 		
 	# level is an array of class instances like the line_ptr in PYTHONRT
 	return lev
@@ -535,15 +545,25 @@ def nist_to_lev(nistclass, threshold_energy):
 
 		rad_rate = 1.00e-09
 
-		lev[i] = level (nistclass[i].z, nistclass[i].ion, nistclass[i].lvl, ionpot, E, nistclass[i].g, rad_rate, bracks, nnstring)
+		lev[i] = level (nistclass[i].z, nistclass[i].ion, nistclass[i].lvl, ionpot, E, nistclass[i].g, rad_rate, nnstring)
 
 
 	return lev
 
 
+
+
+####################################################
+'''
+LEVEL COMPRESSION 
+'''
+####################################################
+
+
+
 def general_level_compress (levels, mode = 0, delta_E = 0.001):
 
-	''' compress levels in a level class '''
+	''' compress levels in a level class by energy resolution (mode = 0) or notation (mode = 1)'''
 
 	nlevels_original = len(levels)
 
@@ -655,7 +675,7 @@ def lines_for_compressed_levels (lines, levels, old_levels, indexes):
 
 	# check for duplicates
 	# oscillator strengths is weighted by statistical weight
-	# frequency is weighted by statictial weight * oscillatorstrength
+	# frequency is weighted by statistical weight * oscillatorstrength
 
 	lines_new_2 = []
 	nlines = len(lines_new)
@@ -729,13 +749,6 @@ def lines_for_compressed_levels (lines, levels, old_levels, indexes):
 	lines_new = np.array(lines_new_2)
 
 	return lines_new
-
-
-
-
-
-
-
 
 
 
@@ -825,35 +838,117 @@ def compress_levels (nistclass):
 
 	return nistclass_new
 
+
+####################################################
+'''
+TOPBASE LEVELS, LINES AND PARTIAL CROSS SECTIONS 
+'''
+####################################################
+
+
+
 def read_topbase_levels(filename):
 
 	'''read in level info from original topbase levels and 
 	place in class instance array'''
 
-	level_array_read = np.loadtxt(filename, comments='#', unpack = True, dtype = 'string')
+	f = open(filename, "r")
+
+	lev = []
 	
-	level_array_read = np.transpose(level_array_read)
+	for line in f:
 
-	lev = np.ndarray( len (level_array_read), dtype=np.object)
-	
-	for i in range(len(lev)):
+		data = line.split()
 
-		ne = int(level_array_read[i][2])
-		z = int (level_array_read[i][1])
-		ion = int (level_array_read[i][0])
+		if data[0] != "#":
 
-		lvl = int (level_array_read[i][3])
-		
-		E = float (level_array_read[i][-4])
-		g = int (level_array_read[i][-2])
-		rad_rate = float (level_array_read[i][-1])
+			ne = int(data[2])
+			z = int (data[1])
+			ion = z + 1 - ne
 
-		nnstring =  str  (level_array_read[i][-5])
-		
-		lev[i] = level(z, ion, lvl, 0.0, E, g, rad_rate, "", nnstring)
+			lvl = int (data[3])
+			
+			E = float (data[-2]) * RYDBERG
+			g = float (data[-1])
+			#rad_rate = float (level_array_read[i][-1])
+
+			if len(data) == 10:
+				nnstring = data[5]+" "+data[6]
+			elif len(data) == 9:
+				if data[5] == "1s2": 
+					nnstring= data[5]
+				else:
+					nnstring = data[5][0:2]+" "+data[5][2:]
+
+			
+			lev.append( level(z, ion, lvl, 0.0, E, g, 0.0, nnstring) )
+
+	lev = np.array(lev)
 		
 	# level is an array of class instances like the line_ptr in PYTHONRT
 	return lev
+
+
+
+
+def read_topbase_lines(filename, levels, top_levels):
+
+	'''read in line info from original topbase levels and 
+	place in class instance array'''
+
+	f = open(filename, "r")
+
+	lev = []
+	
+	for line in f:
+
+		data = line.split()
+
+		if data[0] != "#":
+
+			ne = int(data[2])
+			z = int (data[1])
+			ion = z + 1 - ne
+
+			lvl = int (data[3])
+			
+			E = float (data[-2]) * RYDBERG
+			g = float (data[-1])
+			#rad_rate = float (level_array_read[i][-1])
+
+			if len(data) == 10:
+				nnstring = data[5]+" "+data[6]
+			elif len(data) == 9:
+				if data[5] == "1s2": 
+					nnstring= data[5]
+				else:
+					nnstring = data[5][0:2]+" "+data[5][2:]
+
+			
+			lev.append( level(z, ion, lvl, 0.0, E, g, 0.0, nnstring) )
+
+	lev = np.array(lev)
+		
+	# level is an array of class instances like the line_ptr in PYTHONRT
+	return lev
+
+
+
+def __init__(self, _z, _ion, _wavelength, _freq, _osc, _g_l, _g_u, _e_l, _e_u, _ll, _lu):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def read_topbase_xs(filename, suffix="Mac"):
@@ -908,25 +1003,78 @@ def read_topbase_xs(filename, suffix="Mac"):
 
 
 
-def write_topbase_xs(top, filename, suffix="Mac"):
+def write_topbase_xs(top, levels, top_levels, filename, suffix="Mac", levmax = 1e50, append = False):
 
-	'''write array of topbase class instances to file'''
+	'''write array of topbase class instances to file in macro atom format, with lower and upper levels specified'''
 
 
-	file_write = open( filename, 'w')
+	if append:
+		write_string = 'a'
+	else:
+		write_string = 'w'
+	
+	file_write = open( filename, write_string)
+
+	lu = 1 # we assume ionization to ground state of +ion
+
+
+	print len(top), len(levels), len(top_levels)
+
+	count = 0
 
 	for i in range(len(top)):
 
-		## write the summary records
-		file_write.write('Phot%sS  %1d  %1d %3d    %1d     %.6f  %2d\n' %
-                                    ( suffix, top[i].Z, top[i].ion, top[i].islp, top[i].l, top[i].E0, top[i].np ))
 
-		n_p = top[i].np
+		#print top_levels[i].z, top_levels[i].nnstring
 
-		## write the actual XSs
-		for j in range( n_p ):
-			
-			file_write.write('Phot%s     %.6f %.3e\n' % (suffix,  top[i].energy[j], top[i].XS[j]) )
+
+
+		for j in range(len(levels)):
+
+			write = False
+
+			#print top_levels[i].nnstring, "//" ,levels[j].nnstring
+
+			if top_levels[i].nnstring == levels[j].nnstring and top_levels[i].z == levels[j].z and top_levels[i].ion == levels[j].ion:
+
+
+				if levels[j].lvl<=levmax:
+					write = True
+
+					ll = levels[j].lvl 
+
+					print "match", ll, top_levels[i].z, levels[j].nnstring
+
+
+
+
+
+
+
+
+
+			if write:
+				## write the summary records
+				n_p = top[i].np
+ 
+
+				if n_p>50: 
+					n_p = 50
+
+				print n_p
+
+				file_write.write('Phot%sS  %1d  %1d %3d    %1d     %.6f  %2d\n' %
+	                                    ( suffix, top[i].Z, top[i].ion, ll, lu, top[i].E0, n_p ))
+
+
+				## write the actual XSs
+				for j in range( n_p ):
+				
+					file_write.write('Phot%s     %.6f %.3e\n' % (suffix,  top[i].energy[j], top[i].XS[j]) )
+
+				count +=1
+
+	print levels[0].ion, count
 
 
 	file_write.close()
@@ -1003,7 +1151,7 @@ class line:
 # line class: analogous to line ptr in python. contains freq, oscillator strength, 
 class level:
 	'''Stores information from a Python levels file'''
-	def __init__(self, _z, _ion, _lvl, _ionpot, _E, _g, _rad_rate, _bracks, _nnstring):
+	def __init__(self, _z, _ion, _lvl, _ionpot, _E, _g, _rad_rate, _nnstring):
 		self.z = _z
 		self.ion = _ion
 		self.lvl = _lvl
@@ -1011,7 +1159,6 @@ class level:
 		self.E = _E
 		self.g = _g
 		self.rad_rate = _rad_rate
-		self.bracks = _bracks
 		self.nnstring = _nnstring
 		
 class chianti_level:

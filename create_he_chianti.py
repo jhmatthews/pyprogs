@@ -24,6 +24,8 @@ Z = 2
 ion_threshold = 24.587387512
 dE = 0.001
 
+LEVMAX = 10
+
 
 # first create level file
 
@@ -33,13 +35,13 @@ lev_he1 = sub.chianti_to_lev (level_info, ion_threshold, Z, 1)
 
 #lev_he1, maplev = sub.general_level_compress (lev_he1_old, delta_E = dE)
 
-sub.write_level_file (lev_he1, "data/atomic_macro/he_test1_levels.py", levmax = 10)
+sub.write_level_file (lev_he1, "data/atomic_macro/he_test1_levels.py", levmax = LEVMAX)
 
 line = sub.chianti_to_line (line_info, level_info, Z, 1)
 
 #line = sub.lines_for_compressed_levels ( line, lev_he1, lev_he1_old, maplev)
 
-sub.write_line_file (line, "data/atomic_macro/he_test1_lines.py", levmax = 10)
+sub.write_line_file (line, "data/atomic_macro/he_test1_lines.py", levmax = LEVMAX)
 
 
 
@@ -53,17 +55,17 @@ level_info, line_info = sub.read_chianti_data(level_filename="he_2.elvlc", radia
 
 lev_he2 = sub.chianti_to_lev (level_info, ion_threshold, Z, 2, E0_init = 24.587387512)
 
-sub.write_level_file (lev_he2, "data/atomic_macro/he_test1_levels.py", levmax = 10, append = True)
+sub.write_level_file (lev_he2, "data/atomic_macro/he_test1_levels.py", levmax = LEVMAX, append = True)
 
 
 
 
 
-line = sub.chianti_to_line (line_info, level_info, Z, 2)
+line = sub.chianti_to_line (line_info, level_info, Z, 2, E0_init = 24.587387512)
 
 #line = sub.lines_for_compressed_levels ( line, lev_he1, lev_he1_old, maplev)
 
-sub.write_line_file (line, "data/atomic_macro/he_test1_lines.py", levmax = 10,  append = True)
+sub.write_line_file (line, "data/atomic_macro/he_test1_lines.py", levmax = LEVMAX,  append = True)
 
 
 
@@ -73,9 +75,19 @@ sub.write_line_file (line, "data/atomic_macro/he_test1_lines.py", levmax = 10,  
 
 #lines = sub.read_line_info ("data/atomic_macro/h10_lines.py")
 
-#topphot = sub.read_topbase_xs("topbase_he_xs")
+topphot = sub.read_topbase_xs("topbase_he_xs")
 
-#sub.write_topbase_xs(topphot, "he_top_phot_macro.py")
+toplev = sub.read_topbase_levels("topbase_he_levels")
+
+
+sub.write_topbase_xs(topphot, lev_he1, toplev, "he_top_phot_macro.py", levmax = LEVMAX, append=False)
+
+
+
+sub.write_topbase_xs(topphot, lev_he2, toplev, "he_top_phot_macro.py", levmax = LEVMAX, append=True)
+
+
+
 
 
 
