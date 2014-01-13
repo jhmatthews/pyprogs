@@ -215,7 +215,9 @@ def chianti_to_line (line_info, chianti_levels,  Z, ion, E0_init = 0.0):
 		gl = 2*chianti_levels[il].J + 1
 		gu = 2*chianti_levels[iu].J + 1
 
-		lines[i] = line (Z, ion, line_info[i].wave/ANGSTROM, line_info[i].freq, line_info[i].osc, gl, gu, El, Eu, ll, lu)
+		f = line_info[i].osc / gl 	# need to convert from weighted oscillator strength to f value
+
+		lines[i] = line (Z, ion, line_info[i].wave/ANGSTROM, line_info[i].freq, f, gl, gu, El, Eu, ll, lu)
 
 	return lines 
 
@@ -323,8 +325,8 @@ def read_line_info(filename):
 	for i in range(len(lines)):
 		z = float (line_array_read[i][1])
 		ion = float (line_array_read[i][2])
-		wave = ANGSTROM * float (line_array_read[i][3])
-		freq = C / ( wave ) 
+		wave = float (line_array_read[i][3])
+		freq = C / ( ANGSTROM * wave ) 
 		osc = float (line_array_read[i][4])
 		gl = int (line_array_read[i][5])
 		gu = int (line_array_read[i][6])
@@ -891,10 +893,10 @@ def read_topbase_levels(filename):
 
 
 
-def read_topbase_lines(filename, levels, top_levels):
+'''def read_topbase_lines(filename, levels, top_levels):
 
-	'''read in line info from original topbase levels and 
-	place in class instance array'''
+	read in line info from original topbase levels and 
+	place in class instance array
 
 	f = open(filename, "r")
 
@@ -910,10 +912,14 @@ def read_topbase_lines(filename, levels, top_levels):
 			z = int (data[1])
 			ion = z + 1 - ne
 
-			lvl = int (data[3])
+			#lvl = int (data[3])
 			
-			E = float (data[-2]) * RYDBERG
-			g = float (data[-1])
+			osc = float (data[-4]) 
+
+			if osc > 0:
+
+			gu = float (data[-1])
+			gl = 
 			#rad_rate = float (level_array_read[i][-1])
 
 			if len(data) == 10:
@@ -930,28 +936,29 @@ def read_topbase_lines(filename, levels, top_levels):
 	lev = np.array(lev)
 		
 	# level is an array of class instances like the line_ptr in PYTHONRT
-	return lev
-
-
-
-def __init__(self, _z, _ion, _wavelength, _freq, _osc, _g_l, _g_u, _e_l, _e_u, _ll, _lu):
+	return lev'''
 
 
 
 
+def sort_class(class_array, attr_string="ll"):
+
+	'''sorts array of class instances into correct order (by lower level)'''
+
+	import operator
+
+	# sort by lower level as default, provided as keyword arg
+	sorted_class_array = sorted(class_array, key=operator.attrgetter(attr_string))
+
+	# return numpy array of class instances
+	return np.array(sorted_class_array)
 
 
 
 
 
 
-
-
-
-
-
-
-def read_topbase_xs(filename, suffix="Mac"):
+def read__original_topbase_xs(filename, suffix="Mac"):
 
 	'''this needs to be done manually, annoyingly, as format of
 	topbase has no PhotTop or PhotMac string'''
@@ -983,7 +990,7 @@ def read_topbase_xs(filename, suffix="Mac"):
 
 
 			Z = int(data[1])
-			ion = int(data[2])
+			ion = Z - int(data[2]) + 1 
 			islp = int(data[3])
 			l = int(data[4])
 			E = -1 * float(data[5]) * RYDBERG
@@ -1001,19 +1008,58 @@ def read_topbase_xs(filename, suffix="Mac"):
 	return top
 
 
+def read_topbase(filename, mode="Top"):
+	'''
+	read in XS info from Topbase XS data in Python format
+
+	:INPUT:
+		filename 		string
+						atomic data filename e.g. topbase_h1_phot.py
+	:OUTPUT:
+		top 			topbase class instance
+						topbase class instance containing information 
+						for this filename
+	'''
+
+	# read in summary records
+	Z,ion,islp,l, E0, num_records = sum_records = np.loadtxt( filename, 
+			dtype={'names': ('Z', 'ion', 'islp', 'l', 'E0', 'np'), 
+			'formats': ('i4', 'i4', 'i4', 'i4', 'float', 'i4')}, 
+                        comments='Phot%s ' % mode , delimiter=None, converters=None, 
+                        skiprows=0, usecols=(1,2,3,4,5,6), unpack=True, ndmin=0)
+	
+	# then read the actual cross sections
+	energy, XS = np.loadtxt(filename, dtype='float', 
+                        comments='Phot%sS' % mode, delimiter=None, converters=None, 
+                        skiprows=0, usecols=(1,2), unpack=True, ndmin=0)
+
+	# create blank array to store topbase class instances
+	top = np.ndarray( len(Z),dtype=np.object)
+
+	nline = 0
+	
+	for i in range(len(top)):
+
+		n_p = int(num_records[i])
+		nmax = nline + n_p
+		
+		top[i] = topbase_class (Z[i], int(ion[i]), int(islp[i]), int(l[i]), E0[i], n_p, energy[nline:nmax], XS[nline:nmax])
+
+		nline = nmax
+		
+	# top is an array of class instances like the topbase_ptr in PYTHONRT
+	return top
 
 
-def write_topbase_xs(top, levels, top_levels, filename, suffix="Mac", levmax = 1e50, append = False):
+
+
+
+
+def prepare_topbase_xs(top, levels, top_levels, suffix="Mac", levmax = 1e50):
 
 	'''write array of topbase class instances to file in macro atom format, with lower and upper levels specified'''
 
 
-	if append:
-		write_string = 'a'
-	else:
-		write_string = 'w'
-	
-	file_write = open( filename, write_string)
 
 	lu = 1 # we assume ionization to ground state of +ion
 
@@ -1021,6 +1067,7 @@ def write_topbase_xs(top, levels, top_levels, filename, suffix="Mac", levmax = 1
 	print len(top), len(levels), len(top_levels)
 
 	count = 0
+	topnew = []
 
 	for i in range(len(top)):
 
@@ -1031,7 +1078,6 @@ def write_topbase_xs(top, levels, top_levels, filename, suffix="Mac", levmax = 1
 
 		for j in range(len(levels)):
 
-			write = False
 
 			#print top_levels[i].nnstring, "//" ,levels[j].nnstring
 
@@ -1039,42 +1085,99 @@ def write_topbase_xs(top, levels, top_levels, filename, suffix="Mac", levmax = 1
 
 
 				if levels[j].lvl<=levmax:
-					write = True
 
 					ll = levels[j].lvl 
+					ion = levels[j].ion
 
-					print "match", ll, top_levels[i].z, levels[j].nnstring
+					#print "match", ll, top_levels[i].z, levels[j].nnstring
 
-
-
-
-
-
-
-
-
-			if write:
-				## write the summary records
-				n_p = top[i].np
+					## write the summary records
+					n_p = top[i].np
  
 
-				if n_p>50: 
-					n_p = 50
+					if n_p>100: 
+						n_p = 100
 
-				print n_p
+					if n_p>0:
+						topnew_class = topwrite ( top[i].Z, top[i].ion, ll, lu, top[i].E0, n_p, top[i].energy, top[i].XS)
+						topnew.append ( topnew_class)
 
-				file_write.write('Phot%sS  %1d  %1d %3d    %1d     %.6f  %2d\n' %
-	                                    ( suffix, top[i].Z, top[i].ion, ll, lu, top[i].E0, n_p ))
+						count +=1
+
+	return np.array(topnew)
 
 
-				## write the actual XSs
-				for j in range( n_p ):
-				
-					file_write.write('Phot%s     %.6f %.3e\n' % (suffix,  top[i].energy[j], top[i].XS[j]) )
 
-				count +=1
+def read_top_macro(filename, mode="Mac"):
+	'''
+	read in XS info from Topbase XS data in Python format
 
-	print levels[0].ion, count
+	:INPUT:
+		filename 		string
+						atomic data filename e.g. topbase_h1_phot.py
+	:OUTPUT:
+		top 			topbase class instance
+						topbase class instance containing information 
+						for this filename
+	'''
+
+	# read in summary records
+	Z,ion,ll,lu, E0, num_records = sum_records = np.loadtxt( filename, 
+			dtype={'names': ('Z', 'ion', 'islp', 'l', 'E0', 'np'), 
+			'formats': ('i4', 'i4', 'i4', 'i4', 'float', 'i4')}, 
+                        comments='Phot%s ' % mode , delimiter=None, converters=None, 
+                        skiprows=0, usecols=(1,2,3,4,5,6), unpack=True, ndmin=0)
+	
+	# then read the actual cross sections
+	energy, XS = np.loadtxt(filename, dtype='float', 
+                        comments='Phot%sS' % mode, delimiter=None, converters=None, 
+                        skiprows=0, usecols=(1,2), unpack=True, ndmin=0)
+
+	# create blank array to store topbase class instances
+	top = np.ndarray( len(Z),dtype=np.object)
+
+	nline = 0
+	
+	for i in range(len(top)):
+
+		n_p = int(num_records[i])
+		nmax = nline + n_p
+		
+		top[i] = topwrite (Z[i], int(ion[i]), int(ll[i]), int(lu[i]), E0[i], n_p, energy[nline:nmax], XS[nline:nmax])
+
+		nline = nmax
+		
+	# top is an array of class instances like the topbase_ptr in PYTHONRT
+	return top
+
+
+
+def write_top_macro(topnew, filename, suffix = "Mac", append = False, levmax = 100):
+
+	if append:
+		write_string = 'a'
+	else:
+		write_string = 'w'
+	
+	file_write = open( filename, write_string)
+
+	topnew = sort_class (topnew)
+
+	#print len(topnew), len(topnew2), count 
+
+	for i in range(len(topnew)):
+
+		if topnew[i].ll <=levmax and topnew[i].lu <=levmax:
+
+			file_write.write('Phot%sS  %1d  %1d %3d    %1d     %.6f  %2d\n' %
+		                                    ( suffix, topnew[i].Z, topnew[i].ion, topnew[i].ll, topnew[i].lu, topnew[i].E0, topnew[i].np ))
+
+
+			## write the actual XSs
+			for j in range( topnew[i].np ):
+					
+				file_write.write('Phot%s     %.6f %.3e\n' % (suffix,  topnew[i].energy[j], topnew[i].XS[j]) )
+
 
 
 	file_write.close()
@@ -1200,7 +1303,17 @@ class chianti_rad:
 		self.J_low = _J_low
 		self.J_up = _J_up
 
-
+class topwrite():
+	'''a topbase class for writing'''
+	def __init__(self,  _z, _ion, _ll, _lu, _E0, n_p, _energy, _XS):
+		self.Z = _z
+		self.ion = _ion
+		self.ll = _ll
+		self.lu = _lu
+		self.E0 = _E0
+		self.np = n_p
+		self.energy = _energy
+		self.XS = _XS
 
 class topbase_class:
 	'''
