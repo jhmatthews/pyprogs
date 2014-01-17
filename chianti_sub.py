@@ -2,7 +2,12 @@
 '''
 	chianti_sub.py
 
-Subroutines for create_he_chianti.py
+Subroutines for manipulating atomic data. 
+
+
+
+
+
 '''
 import numpy as np
 import sys
@@ -161,7 +166,7 @@ def chianti_to_lev (level_info, E_thres, Z, ion, E0_init=0.000):
 			rad_rate = 1.00e-9
 
 
-		levels[n] = level (Z, ion, lvl, ionpot, energy_ev, g, rad_rate, nstring)
+		levels[n] = level (Z, ion, lvl, ionpot, energy_ev, g, rad_rate, nstring, 0)
 
 		print lvl 
 
@@ -270,7 +275,7 @@ READ AND WRITE PYTHON ROUTINES
 
 
 
-def write_line_file(lin, filename, levmax = 1e50, append=False):
+def write_line_file(lin, filename, levmax = 1e50, append=False, z= None, ion = None):
 	'''
 	write information from array of line class instances to a filename of format
 
@@ -285,7 +290,7 @@ def write_line_file(lin, filename, levmax = 1e50, append=False):
 
 	'''
 
-	header = '''# data from chianti
+	header = '''# data from topbase
 # z = element, ion= ionstage, f = osc. str., gl(gu) = stat. we. lower(upper) level
 # el(eu) = energy lower(upper) level (eV), ll(lu) = lvl index lower(upper) level
 #        z ion       lambda      f         gl  gu    el          eu        ll   lu
@@ -304,9 +309,20 @@ def write_line_file(lin, filename, levmax = 1e50, append=False):
 
 		l = lin[i]
 
-		if l.lu <= levmax:
-			out.write("LinMacro   %i  %i   %11.5f  %.5f  %i   %i   %.5f   %.5f  %i  %i\n" %
-			       (l.z, l.ion, l.wavelength, l.osc, l.g_l, l.g_u, l.e_l, l.e_u, l.ll, l.lu))
+		zbool = (z == l.z or z == None)
+		ibool = (ion == l.ion or ion == None)
+
+		if zbool and ibool:
+
+			if l.lu <= levmax and l.wavelength<1e20:
+			
+				out.write("LinMacro   %i  %i   %11.5f  %.5f  %i   %i   %.5f   %.5f  %i  %i\n" %
+				       (l.z, l.ion, l.wavelength, l.osc, l.g_l, l.g_u, l.e_l, l.e_u, l.ll, l.lu))
+
+			elif l.wavelength>1e20:
+				out.write("LinMacro   %i  %i   %11.5e  %.5f  %i   %i   %.5f   %.5f  %i  %i\n" %
+				       (l.z, l.ion, l.wavelength, l.osc, l.g_l, l.g_u, l.e_l, l.e_u, l.ll, l.lu))
+
 
 	out.close()
 
@@ -341,7 +357,7 @@ def read_line_info(filename):
 	return lines
 
 
-def write_level_file(lev, filename, levmax = 1e50, append = False):
+def write_level_file(lev, filename, levmax = 1e50, append = False, z = None, ion = None):
 
 	'''
 	write information from array of level class instances to a filename of format
@@ -374,15 +390,20 @@ def write_level_file(lev, filename, levmax = 1e50, append = False):
 
 		l = lev[i]
 
-		if l.ion != iprev:
-			out.write("#\n#\n")
+		zbool = (z == l.z or z == None)
+		ibool = (ion == l.ion or ion == None)
 
-		if l.lvl <= levmax:
+		if zbool and ibool:
 
-			out.write("LevMacro   %i  %i  %3i  %.5f   %.5f   %3i   %8.2e  %s\n" %
-				       (l.z, l.ion, l.lvl, l.ionpot, l.E, l.g, l.rad_rate, l.nnstring))
+			if l.ion != iprev:
+				out.write("#\n#\n")
 
-		iprev = l.ion
+			if l.lvl <= levmax:
+
+				out.write("LevMacro   %i  %i  %3i  %.5f   %.5f   %3i   %8.2e  %s\n" %
+					       (l.z, l.ion, l.lvl, l.ionpot, l.E, l.g, l.rad_rate, l.nnstring))
+
+			iprev = l.ion
 
 	out.close()
 
@@ -411,7 +432,7 @@ def read_level_info(filename):
 		brack =  str (level_array_read[i][8])
 		nnstring =  str  (level_array_read[i][8]) + " " +  str  (level_array_read[i][9])
 		
-		lev[i] = level(z, ion, lvl, ionpot, E, g, rad_rate, nnstring)
+		lev[i] = level(z, ion, lvl, ionpot, E, g, rad_rate, nnstring, 0)
 		
 	# level is an array of class instances like the line_ptr in PYTHONRT
 	return lev
@@ -547,7 +568,7 @@ def nist_to_lev(nistclass, threshold_energy):
 
 		rad_rate = 1.00e-09
 
-		lev[i] = level (nistclass[i].z, nistclass[i].ion, nistclass[i].lvl, ionpot, E, nistclass[i].g, rad_rate, nnstring)
+		lev[i] = level (nistclass[i].z, nistclass[i].ion, nistclass[i].lvl, ionpot, E, nistclass[i].g, rad_rate, nnstring, 0)
 
 
 	return lev
@@ -868,9 +889,14 @@ def read_topbase_levels(filename):
 			z = int (data[1])
 			ion = z + 1 - ne
 
-			lvl = int (data[3])
+			lvl = int (data[0])
+
+			ilv = int (data[4])
+
+			islp = int (data[3])
 			
 			E = float (data[-2]) * RYDBERG
+			ionpot = float (data[-3]) * RYDBERG
 			g = float (data[-1])
 			#rad_rate = float (level_array_read[i][-1])
 
@@ -883,12 +909,42 @@ def read_topbase_levels(filename):
 					nnstring = data[5][0:2]+" "+data[5][2:]
 
 			
-			lev.append( level(z, ion, lvl, 0.0, E, g, 0.0, nnstring) )
+			lev.append( level(z, ion, lvl, ionpot, E, g, 0.0, nnstring, islp, ilv) )
 
 	lev = np.array(lev)
 		
 	# level is an array of class instances like the line_ptr in PYTHONRT
 	return lev
+
+
+def modify_upper_energies(toplev, threshold, ion = 2):
+
+	top = []
+
+	for i in range(toplev):
+		if toplev[i].ion == ion:
+			toplev[i].E = toplev[i].E + threshold 
+
+		top.append(toplev[i])
+
+	return np.array(toplev)
+
+
+
+
+
+
+def sort_toplev(class_array, attr_string="E"):
+
+	'''sorts array of class instances into correct order (by lower level)'''
+
+	import operator
+
+	# sort by lower level as default, provided as keyword arg
+	sorted_class_array = sorted(class_array, key=operator.attrgetter(attr_string))
+
+	# return numpy array of class instances
+	return np.array(sorted_class_array)
 
 
 
@@ -958,7 +1014,7 @@ def sort_class(class_array, attr_string="ll"):
 
 
 
-def read__original_topbase_xs(filename, suffix="Mac"):
+def read_original_topbase_xs(filename, suffix="Mac"):
 
 	'''this needs to be done manually, annoyingly, as format of
 	topbase has no PhotTop or PhotMac string'''
@@ -1108,6 +1164,9 @@ def prepare_topbase_xs(top, levels, top_levels, suffix="Mac", levmax = 1e50):
 
 
 
+
+
+
 def read_top_macro(filename, mode="Mac"):
 	'''
 	read in XS info from Topbase XS data in Python format
@@ -1254,7 +1313,7 @@ class line:
 # line class: analogous to line ptr in python. contains freq, oscillator strength, 
 class level:
 	'''Stores information from a Python levels file'''
-	def __init__(self, _z, _ion, _lvl, _ionpot, _E, _g, _rad_rate, _nnstring):
+	def __init__(self, _z, _ion, _lvl, _ionpot, _E, _g, _rad_rate, _nnstring, _islp):
 		self.z = _z
 		self.ion = _ion
 		self.lvl = _lvl
@@ -1263,6 +1322,22 @@ class level:
 		self.g = _g
 		self.rad_rate = _rad_rate
 		self.nnstring = _nnstring
+		self.islp = _islp
+
+# line class: analogous to line ptr in python. contains freq, oscillator strength, 
+class toplevel:
+	'''Stores information from a Python levels file'''
+	def __init__(self, _z, _ion, _lvl, _ionpot, _E, _g, _rad_rate, _nnstring, _islp, _ilv):
+		self.z = _z
+		self.ion = _ion
+		self.lvl = _lvl
+		self.ionpot = _ionpot
+		self.E = _E
+		self.g = _g
+		self.rad_rate = _rad_rate
+		self.nnstring = _nnstring
+		self.islp = _islp
+		self.ilv = _ilv
 		
 class chianti_level:
 	'''
