@@ -387,10 +387,10 @@ class photo():
 			
 			top[i] = cls.top_photo(Z[i], int(ion[i]), int(islp[i]), int(l[i]), E0[i], n_p, energy[nline:nmax], XS[nline:nmax])
 
-			if ion[i] == 2 and int(islp[i]) / 100 != 2:
-				print "Error, non doublet in He II! ion %i islp[i] %i" % (ion, int(islp[i]))
-				print sr[i]
-				print ne[i], ion[i] 
+			#if ion[i] == 2 and int(islp[i]) / 100 != 2:
+			#	print "Error, non doublet in He II! ion %i islp[i] %i" % (ion, int(islp[i]))
+			#	print sr[i]
+			#	print ne[i], ion[i] 
 
 			nline = nmax
 			
@@ -598,7 +598,7 @@ class photo():
 
 
 
-
+'''
 Z = 2
 ion_threshold = 24.310389
 dE = 0.001
@@ -662,7 +662,7 @@ phot.write_top_macro(top_macro, "he_top_phot_macro.py", z = 2, ion = 1)
 #sub.write_line_file(newlines, "he_top_lines.py", z = 2, ion = 2, append = True)
 
 
-
+'''
 
 
 
