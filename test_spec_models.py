@@ -155,7 +155,7 @@ def pl(alpha, logW, nu):
 
 
 
-def get_xbands(filename, NPLASMA, NBANDS):
+def get_xbands(fname, NPLASMA, NBANDS):
 
 	'''
 	array of class instances with shape of grid read in
