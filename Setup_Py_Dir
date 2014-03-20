@@ -22,5 +22,5 @@ ln -s -f $top/$xdata atomic
 ln -s -f $top/$xdata/kurucz91
 ln -s -f $top/$xdata/hutdisk93
 ln -s -f $top/$xdata/disk06
-
+ln -s -f $top/$xdata/disk14
 

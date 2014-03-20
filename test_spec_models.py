@@ -28,8 +28,15 @@ def run_py_wind (vers, fname):
 	'''
 	run version vers of py_wind on file fname.wind_save
 	'''
-	isys = os.system('py_wind'+vers+' '+fname+' < band_cmds > tempfile &')
+	x = np.array(["1","O","B","S","I","q"])
+	np.savetxt("_tempcmd.txt", x, fmt = "%s")
+
+
+	isys = os.system('py_wind'+vers+' '+fname+' < _tempcmd.txt > tempfile &')
 	time.sleep(3)
+
+	# remove temporary file
+	os.system("rm -f _tempcmd.txt")
 	return isys
 
 
